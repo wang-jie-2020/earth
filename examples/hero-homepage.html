@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hero Homepage Shell</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #070a12;
+        color: #f4f7ff;
+      }
+
+      .hero {
+        position: relative;
+        display: grid;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      #globe-stage {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 25% 20%, #1d3f74 0%, transparent 40%),
+          radial-gradient(circle at 80% 70%, #12305f 0%, transparent 42%),
+          linear-gradient(160deg, #05080f 0%, #0a1323 50%, #091729 100%);
+      }
+
+      .hero-top {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(140px, 1fr));
+        gap: 12px;
+        padding: 20px;
+      }
+
+      .metric-card {
+        min-height: 96px;
+        border: 1px solid rgba(165, 188, 230, 0.34);
+        border-radius: 8px;
+        background: rgba(9, 17, 30, 0.72);
+        backdrop-filter: blur(4px);
+        padding: 14px 16px;
+      }
+
+      .metric-label {
+        margin: 0;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #98abd2;
+      }
+
+      .metric-value {
+        margin: 8px 0 0;
+        font-size: clamp(20px, 2.8vw, 32px);
+        line-height: 1.1;
+      }
+
+      .hero-bottom {
+        position: relative;
+        z-index: 1;
+        margin-top: auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 16px;
+        padding: 20px;
+      }
+
+      .legend-placeholder {
+        min-width: 240px;
+        max-width: 300px;
+        border: 1px dashed rgba(161, 180, 214, 0.48);
+        border-radius: 8px;
+        padding: 14px;
+        background: rgba(7, 13, 23, 0.56);
+        color: #b4c6eb;
+      }
+
+      #project-tooltip {
+        width: min(360px, 90vw);
+        border: 1px solid rgba(142, 171, 221, 0.5);
+        border-radius: 8px;
+        background: rgba(5, 10, 20, 0.9);
+        padding: 14px;
+      }
+
+      #tip-name {
+        margin: 0 0 6px;
+        font-size: 18px;
+      }
+
+      #tip-meta {
+        margin: 0 0 8px;
+        font-size: 12px;
+        color: #9db1d9;
+      }
+
+      #tip-type {
+        display: inline-block;
+        margin: 0 0 10px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        border: 1px solid rgba(156, 181, 227, 0.4);
+        color: #c4d4f6;
+      }
+
+      #tip-desc {
+        margin: 0;
+        color: #dbe4f7;
+      }
+
+      @media (max-width: 900px) {
+        .hero-top {
+          grid-template-columns: repeat(2, minmax(120px, 1fr));
+        }
+
+        .hero-bottom {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .legend-placeholder {
+          max-width: none;
+        }
+
+        #project-tooltip {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="hero">
+      <div id="globe-stage" aria-hidden="true"></div>
+
+      <section class="hero-top" aria-label="Top Metrics">
+        <article class="metric-card" id="metric-total">
+          <p class="metric-label">Total Projects</p>
+          <p class="metric-value">0</p>
+        </article>
+        <article class="metric-card" id="metric-regions">
+          <p class="metric-label">Regions</p>
+          <p class="metric-value">0</p>
+        </article>
+        <article class="metric-card" id="metric-active">
+          <p class="metric-label">Active</p>
+          <p class="metric-value">0</p>
+        </article>
+        <article class="metric-card" id="metric-risk">
+          <p class="metric-label">At Risk</p>
+          <p class="metric-value">0</p>
+        </article>
+      </section>
+
+      <section class="hero-bottom">
+        <aside class="legend-placeholder" aria-label="Legend Placeholder">
+          Legend placeholder
+        </aside>
+
+        <aside id="project-tooltip" role="status" aria-live="polite">
+          <h2 id="tip-name">Project Name</h2>
+          <p id="tip-meta">Region • Stage</p>
+          <p id="tip-type">Type</p>
+          <p id="tip-desc">Tooltip details will appear here.</p>
+        </aside>
+      </section>
+    </main>
+
+    <script>
+      const METRICS = {
+        total: "128",
+        regions: "7",
+        active: "91",
+        risk: "12",
+      };
+
+      const metricMap = {
+        "metric-total": METRICS.total,
+        "metric-regions": METRICS.regions,
+        "metric-active": METRICS.active,
+        "metric-risk": METRICS.risk,
+      };
+
+      Object.entries(metricMap).forEach(([id, value]) => {
+        const card = document.getElementById(id);
+        if (!card) return;
+        const valueNode = card.querySelector(".metric-value");
+        if (!valueNode) return;
+        valueNode.textContent = value;
+      });
+    </script>
+  </body>
+</html>
