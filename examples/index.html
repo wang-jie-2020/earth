@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+  <title>three.js webgpu - earth (local copy)</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      color: #fff;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    a {
+      color: #8ec5ff;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    #info {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 10;
+      max-width: min(90vw, 720px);
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(4px);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    #info .title {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <span class="title">three.js Earth (copied from webgpu_tsl_earth)</span>
+    Based on
+    <a href="https://threejs.org/examples/?q=earth#webgpu_tsl_earth" target="_blank" rel="noopener">webgpu_tsl_earth</a>
+    official example, using CDN modules and remote textures.
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.184.0/build/three.webgpu.js",
+        "three/webgpu": "https://unpkg.com/three@0.184.0/build/three.webgpu.js",
+        "three/tsl": "https://unpkg.com/three@0.184.0/build/three.tsl.js",
+        "three/addons/": "https://unpkg.com/three@0.184.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from "three/webgpu";
+    import {
+      step,
+      normalWorldGeometry,
+      output,
+      texture,
+      vec3,
+      vec4,
+      normalize,
+      positionWorld,
+      bumpMap,
+      cameraPosition,
+      color,
+      uniform,
+      mix,
+      uv,
+      max
+    } from "three/tsl";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { Inspector } from "three/addons/inspector/Inspector.js";
+
+    let camera;
+    let scene;
+    let renderer;
+    let controls;
+    let globe;
+    let timer;
+
+    init();
+
+    function init() {
+      timer = new THREE.Timer();
+      timer.connect(document);
+
+      camera = new THREE.PerspectiveCamera(25, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(4.5, 2, 3);
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x000000);
+
+      const sun = new THREE.DirectionalLight("#ffffff", 2);
+      sun.position.set(0, 0, 3);
+      scene.add(sun);
+
+      const atmosphereDayColor = uniform(color("#4db2ff"));
+      const atmosphereTwilightColor = uniform(color("#bc490b"));
+      const roughnessLow = uniform(0.25);
+      const roughnessHigh = uniform(0.35);
+
+      const textureLoader = new THREE.TextureLoader();
+
+      const dayTexture = textureLoader.load("https://threejs.org/examples/textures/planets/earth_day_4096.jpg");
+      dayTexture.colorSpace = THREE.SRGBColorSpace;
+      dayTexture.anisotropy = 8;
+
+      const nightTexture = textureLoader.load("https://threejs.org/examples/textures/planets/earth_night_4096.jpg");
+      nightTexture.colorSpace = THREE.SRGBColorSpace;
+      nightTexture.anisotropy = 8;
+
+      const bumpRoughnessCloudsTexture = textureLoader.load("https://threejs.org/examples/textures/planets/earth_bump_roughness_clouds_4096.jpg");
+      bumpRoughnessCloudsTexture.anisotropy = 8;
+
+      const viewDirection = positionWorld.sub(cameraPosition).normalize();
+      const fresnel = viewDirection.dot(normalWorldGeometry).abs().oneMinus().toVar();
+
+      const sunOrientation = normalWorldGeometry.dot(normalize(sun.position)).toVar();
+      const atmosphereColor = mix(atmosphereTwilightColor, atmosphereDayColor, sunOrientation.smoothstep(-0.25, 0.75));
+
+      const globeMaterial = new THREE.MeshStandardNodeMaterial();
+      const cloudsStrength = texture(bumpRoughnessCloudsTexture, uv()).b.smoothstep(0.2, 1);
+
+      globeMaterial.colorNode = mix(texture(dayTexture), vec3(1), cloudsStrength.mul(2));
+
+      const roughness = max(
+        texture(bumpRoughnessCloudsTexture).g,
+        step(0.01, cloudsStrength)
+      );
+      globeMaterial.roughnessNode = roughness.remap(0, 1, roughnessLow, roughnessHigh);
+
+      const night = texture(nightTexture);
+      const dayStrength = sunOrientation.smoothstep(-0.25, 0.5);
+      const atmosphereDayStrength = sunOrientation.smoothstep(-0.5, 1);
+      const atmosphereMix = atmosphereDayStrength.mul(fresnel.pow(2)).clamp(0, 1);
+
+      let finalOutput = mix(night.rgb, output.rgb, dayStrength);
+      finalOutput = mix(finalOutput, atmosphereColor, atmosphereMix);
+      globeMaterial.outputNode = vec4(finalOutput, output.a);
+
+      const bumpElevation = max(
+        texture(bumpRoughnessCloudsTexture).r,
+        cloudsStrength
+      );
+      globeMaterial.normalNode = bumpMap(bumpElevation);
+
+      const sphereGeometry = new THREE.SphereGeometry(1, 64, 64);
+      globe = new THREE.Mesh(sphereGeometry, globeMaterial);
+      scene.add(globe);
+
+      const atmosphereMaterial = new THREE.MeshBasicNodeMaterial({ side: THREE.BackSide, transparent: true });
+      let alpha = fresnel.remap(0.73, 1, 1, 0).pow(3);
+      alpha = alpha.mul(sunOrientation.smoothstep(-0.5, 1));
+      atmosphereMaterial.outputNode = vec4(atmosphereColor, alpha);
+
+      const atmosphere = new THREE.Mesh(sphereGeometry, atmosphereMaterial);
+      atmosphere.scale.setScalar(1.04);
+      scene.add(atmosphere);
+
+      renderer = new THREE.WebGPURenderer();
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setAnimationLoop(animate);
+      renderer.inspector = new Inspector();
+      document.body.appendChild(renderer.domElement);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.minDistance = 0.1;
+      controls.maxDistance = 50;
+
+      window.addEventListener("resize", onWindowResize);
+
+      const gui = renderer.inspector.createParameters("Parameters");
+
+      gui
+        .addColor({ color: atmosphereDayColor.value.getHex(THREE.SRGBColorSpace) }, "color")
+        .onChange((value) => {
+          atmosphereDayColor.value.set(value);
+        })
+        .name("atmosphereDayColor");
+
+      gui
+        .addColor({ color: atmosphereTwilightColor.value.getHex(THREE.SRGBColorSpace) }, "color")
+        .onChange((value) => {
+          atmosphereTwilightColor.value.set(value);
+        })
+        .name("atmosphereTwilightColor");
+
+      gui.add(roughnessLow, "value", 0, 1, 0.001).name("roughnessLow");
+      gui.add(roughnessHigh, "value", 0, 1, 0.001).name("roughnessHigh");
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    async function animate() {
+      timer.update();
+      const delta = timer.getDelta();
+      globe.rotation.y += delta * 0.025;
+      controls.update();
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>
